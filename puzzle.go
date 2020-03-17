@@ -32,10 +32,13 @@ type (
 		Scrambled bool
 		Clues     []string
 
+		AcrossNumbers []int
 		AcrossClues   IndexedStrings
 		AcrossAnswers IndexedStrings
-		DownClues     IndexedStrings
-		DownAnswers   IndexedStrings
+
+		DownNumbers []int
+		DownClues   IndexedStrings
+		DownAnswers IndexedStrings
 
 		// Height * Width grids.
 		Numbers  [][]int
@@ -98,12 +101,6 @@ func Decode(puz []byte) (*Puzzle, error) {
 	if err != nil {
 		return nil, fmt.Errorf("malformed solution section in %d×%d puzzle: %s", w, h, err)
 	}
-	if !p.Scrambled {
-		n := p.indexAnswers()
-		if n != p.NumClues {
-			return nil, fmt.Errorf("%d answers were indexed instead of %d", n, p.NumClues)
-		}
-	}
 	_, puz, err = p.readGrid(puz)
 	if err != nil {
 		return nil, fmt.Errorf("malformed fill section in %d×%d puzzle: %s", w, h, err)
@@ -118,7 +115,8 @@ func Decode(puz []byte) (*Puzzle, error) {
 	for i := range p.Clues {
 		p.Clues[i], puz = readString(puz)
 	}
-	n := p.indexClues()
+	p.indexClues()
+	n := len(p.AcrossNumbers) + len(p.DownNumbers)
 	if n != p.NumClues {
 		return nil, fmt.Errorf("%d clues were indexed instead of %d", n, p.NumClues)
 	}
@@ -266,12 +264,14 @@ func (p *Puzzle) readExtension(v []byte) ([]byte, error) {
 	return v[count+1:], nil
 }
 
-// indexAnswers determines answer numbers and adds the corresponding answers to the AcrossAnswers and DownAnswers maps.
-// It returns the total number of answers indexed.
-func (p *Puzzle) indexAnswers() int {
+// indexClues determines clue numbers; builds the numbers, clues, and answers maps;
+// and enters the numbers in the Numbers grid.
+func (p *Puzzle) indexClues() {
+	p.AcrossClues = make(IndexedStrings)
 	p.AcrossAnswers = make(IndexedStrings)
+	p.DownClues = make(IndexedStrings)
 	p.DownAnswers = make(IndexedStrings)
-	c := 0 // answer count
+	c := 0 // clue index
 	n := 1 // square number
 	for y := 0; y < p.Height; y++ {
 		for x := 0; x < p.Width; x++ {
@@ -280,21 +280,25 @@ func (p *Puzzle) indexAnswers() int {
 			}
 			numbered := false
 			if p.IsBlack(x-1, y) && !p.IsBlack(x+1, y) {
+				p.AcrossNumbers = append(p.AcrossNumbers, n)
+				p.AcrossClues[n] = p.Clues[c]
 				p.AcrossAnswers[n] = p.readAcrossAnswer(x, y)
 				numbered = true
 				c++
 			}
 			if p.IsBlack(x, y-1) && !p.IsBlack(x, y+1) {
+				p.DownNumbers = append(p.DownNumbers, n)
+				p.DownClues[n] = p.Clues[c]
 				p.DownAnswers[n] = p.readDownAnswer(x, y)
 				numbered = true
 				c++
 			}
 			if numbered {
+				p.Numbers[y][x] = n
 				n++
 			}
 		}
 	}
-	return c
 }
 
 func (p *Puzzle) readAcrossAnswer(x int, y int) string {
@@ -317,38 +321,6 @@ func (p *Puzzle) readDownAnswer(x int, y int) string {
 		sb.WriteByte(p.Solution[j][x])
 	}
 	return sb.String()
-}
-
-// indexClues determines clue numbers, adds the corresponding clues to the AcrossClues and DownClues maps,
-// and enters the number in the Numbers grid. It returns the total number of clues indexed.
-func (p *Puzzle) indexClues() int {
-	p.AcrossClues = make(IndexedStrings)
-	p.DownClues = make(IndexedStrings)
-	c := 0 // clue index
-	n := 1 // square number
-	for y := 0; y < p.Height; y++ {
-		for x := 0; x < p.Width; x++ {
-			if p.IsBlack(x, y) {
-				continue
-			}
-			numbered := false
-			if p.IsBlack(x-1, y) && !p.IsBlack(x+1, y) {
-				p.AcrossClues[n] = p.Clues[c]
-				numbered = true
-				c++
-			}
-			if p.IsBlack(x, y-1) && !p.IsBlack(x, y+1) {
-				p.DownClues[n] = p.Clues[c]
-				numbered = true
-				c++
-			}
-			if numbered {
-				p.Numbers[y][x] = n
-				n++
-			}
-		}
-	}
-	return c
 }
 
 func checksum(data []byte, c uint16) uint16 {

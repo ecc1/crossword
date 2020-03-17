@@ -3,6 +3,8 @@ package acrosslite
 import (
 	"io/ioutil"
 	"path"
+	"reflect"
+	"sort"
 	"testing"
 	"time"
 )
@@ -414,10 +416,14 @@ func TestReadPuzzle(t *testing.T) {
 				t.Errorf("Height == %d, want %d", p.Height, c.puz.Height)
 			}
 			checkCircles(t, p, c.circled)
+			checkNumbers(t, "Across", p.AcrossNumbers, c.puz.AcrossClues)
+			checkNumbers(t, "Down", p.DownNumbers, c.puz.DownClues)
 			checkMap(t, "Across clue", p.AcrossClues, c.puz.AcrossClues)
-			checkMap(t, "Across answer", p.AcrossAnswers, c.puz.AcrossAnswers)
 			checkMap(t, "Down clue", p.DownClues, c.puz.DownClues)
-			checkMap(t, "Down answer", p.DownAnswers, c.puz.DownAnswers)
+			if !p.Scrambled {
+				checkMap(t, "Across answer", p.AcrossAnswers, c.puz.AcrossAnswers)
+				checkMap(t, "Down answer", p.DownAnswers, c.puz.DownAnswers)
+			}
 		})
 	}
 }
@@ -444,6 +450,17 @@ func checkCircles(t *testing.T, p *Puzzle, circled Squares) {
 				}
 			}
 		}
+	}
+}
+
+func checkNumbers(t *testing.T, kind string, got []int, clues IndexedStrings) {
+	want := make([]int, 0, len(got))
+	for n := range clues {
+		want = append(want, n)
+	}
+	sort.Ints(want)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("%s numbers: want %v, got %v", kind, want, got)
 	}
 }
 
