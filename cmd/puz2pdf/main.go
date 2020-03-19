@@ -12,6 +12,7 @@ import (
 
 var (
 	forceFlag  = flag.Bool("f", false, "force overwriting of PDF output file")
+	multiFlag  = flag.Bool("m", false, "generate multiple layouts for debugging")
 	outputFile = flag.String("o", "", "write PDF output to `file`")
 )
 
@@ -57,7 +58,11 @@ func puz2pdf(file string, pdf *gofpdf.Fpdf) error {
 	if err != nil {
 		return err
 	}
-	puz.Render(pdf)
+	if *multiFlag {
+		puz.MultiRender(pdf)
+	} else {
+		puz.Render(pdf)
+	}
 	return nil
 }
 
