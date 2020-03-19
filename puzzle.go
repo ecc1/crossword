@@ -205,7 +205,7 @@ func makeString(orig string) string {
 	return s
 }
 
-func origBytes(s string) []byte {
+func PuzzleBytes(s string) []byte {
 	v, _ := charmap.Windows1252.NewEncoder().Bytes([]byte(s))
 	return v
 }
@@ -407,7 +407,7 @@ func (p *Puzzle) textChecksum(c uint16) uint16 {
 }
 
 func stringChecksum(s string, c uint16) uint16 {
-	return checksum(origBytes(s), c)
+	return checksum(PuzzleBytes(s), c)
 }
 
 func zStringChecksum(s string, c uint16) uint16 {
