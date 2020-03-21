@@ -817,7 +817,7 @@ func checkNumbers(t *testing.T, kind string, got []int, clues IndexedStrings) {
 	}
 	sort.Ints(want)
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("%s numbers: want %v, got %v", kind, want, got)
+		t.Errorf("%s numbers: got %v, want %v", kind, got, want)
 	}
 }
 
@@ -825,7 +825,7 @@ func checkMap(t *testing.T, kind string, got IndexedStrings, want IndexedStrings
 	for n, w := range want {
 		g := got[n]
 		if w != g {
-			t.Errorf("%s %d: want %q, got %q", kind, n, w, g)
+			t.Errorf("%s %d: got %q, want %q", kind, n, g, w)
 		}
 	}
 	for n, g := range got {
