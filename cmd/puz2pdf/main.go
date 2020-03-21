@@ -58,10 +58,11 @@ func puz2pdf(file string, pdf *gofpdf.Fpdf) error {
 	if err != nil {
 		return err
 	}
+	rc := puz.NewRenderContext(pdf)
 	if *multiFlag {
-		puz.MultiRender(pdf)
+		rc.RenderAll()
 	} else {
-		puz.Render(pdf)
+		rc.Render()
 	}
 	return nil
 }

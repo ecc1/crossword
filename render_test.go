@@ -17,7 +17,8 @@ func TestRenderAllPuzzles(t *testing.T) {
 				return
 			}
 			pdf := gofpdf.New("L", "pt", "Letter", "")
-			p.Render(pdf)
+			rc := p.NewRenderContext(pdf)
+			rc.Render()
 			pdf.Close()
 			if pdf.PageCount() != 1 {
 				t.Errorf("Render(%s) produced %d pages", base, pdf.PageCount())
