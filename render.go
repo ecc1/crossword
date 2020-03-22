@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sort"
 
 	"github.com/jung-kurt/gofpdf"
 )
@@ -17,7 +18,7 @@ const (
 	columnSepPoints = 3.0
 	minCluePoints   = 6.0
 	maxCluePoints   = 12.0
-	cluePointsIncr  = 0.1
+	cluePointsIncr  = 0.025
 	interClueFrac   = 0.2
 	lineWidthPoints = 0.5
 	blackLevel      = 0.70
@@ -27,10 +28,11 @@ const (
 
 type (
 	RenderContext struct {
+		Layouts    []Layout // in order of increasing NumColumns
+		BestLayout int
+
 		puz            *Puzzle
 		pdf            *gofpdf.Fpdf
-		layouts        []Layout // in order of increasing NumColumns
-		bestLayout     int
 		pageWidth      float64 // page width
 		pageHeight     float64 // page height
 		squareSize     float64 // grid square size
@@ -50,7 +52,7 @@ type (
 		clueLineHeight float64
 		numberPoints   float64
 		numberWidth    float64
-		currentColumn  int
+		currentColumn  int // 1 .. numColumns
 		leftMargin     float64
 		x              float64
 		y              float64
@@ -61,6 +63,8 @@ type (
 		PointSize  float64
 		Score      float64
 	}
+
+	Layouts []Layout
 )
 
 func (p *Puzzle) NewRenderContext(pdf *gofpdf.Fpdf) *RenderContext {
@@ -87,23 +91,19 @@ func (p *Puzzle) NewRenderContext(pdf *gofpdf.Fpdf) *RenderContext {
 }
 
 func (r *RenderContext) Render() {
-	r.renderLayout(r.bestLayout)
+	r.renderLayout(r.BestLayout)
 }
 
 func (r *RenderContext) RenderAll() {
-	for i := range r.layouts {
+	for i := range r.Layouts {
 		r.renderLayout(i)
 		r.markPage(i)
 	}
 }
 
-func (r *RenderContext) Layouts() []Layout {
-	return r.layouts
-}
-
 func (r *RenderContext) renderLayout(i int) {
 	r.pdf.AddPage()
-	layout := r.layouts[i]
+	layout := r.Layouts[i]
 	r.setLayout(layout.NumColumns, layout.PointSize)
 	r.drawTitle()
 	r.drawGrid()
@@ -196,7 +196,9 @@ func (r *RenderContext) drawClues() {
 	puz := r.puz
 	ch := r.clueLineHeight
 	r.doClues("ACROSS", puz.AcrossNumbers, puz.AcrossClues)
-	if r.y+2*ch > r.pageHeight-r.margin {
+	// Make sure first DOWN clue fits along with the heading.
+	h, _ := r.clueHeight(puz.DownClues[puz.DownNumbers[0]])
+	if r.y+1.75*ch+h > r.pageHeight-r.margin {
 		r.nextColumn()
 	} else {
 		r.y += 0.5 * ch
@@ -212,9 +214,7 @@ func (r *RenderContext) doClues(heading string, numbers []int, clues IndexedStri
 		return
 	}
 	pdf := r.pdf
-	colWidth := r.columnWidth
 	ch := r.clueLineHeight
-	numWidth := r.numberWidth
 	rendering := r.rendering
 	pdf.SetFont(font, "B", r.cluePoints)
 	if rendering {
@@ -222,9 +222,7 @@ func (r *RenderContext) doClues(heading string, numbers []int, clues IndexedStri
 	}
 	r.y += 1.25 * ch
 	for _, n := range numbers {
-		clue := PuzzleBytes(clues[n])
-		lines := pdf.SplitLines(clue, colWidth-numWidth)
-		h := float64(len(lines))*ch + interClueFrac*ch
+		h, lines := r.clueHeight(clues[n])
 		if r.y+h > r.pageHeight-r.margin {
 			r.nextColumn()
 			if !r.cluesFit {
@@ -246,6 +244,14 @@ func (r *RenderContext) doClues(heading string, numbers []int, clues IndexedStri
 		}
 		r.y += interClueFrac * ch
 	}
+}
+
+// clueHeight calculates the height required to render a clue.
+// It returns the height and the split lines for rendering.
+func (r *RenderContext) clueHeight(clue string) (float64, [][]byte) {
+	lines := r.pdf.SplitLines(PuzzleBytes(clue), r.columnWidth-r.numberWidth)
+	h := (float64(len(lines)) + interClueFrac) * r.clueLineHeight
+	return h, lines
 }
 
 func (r *RenderContext) setNumberWidth() {
@@ -287,11 +293,14 @@ func (r *RenderContext) nextColumn() {
 	}
 	r.leftMargin += r.columnWidth + r.columnSep
 	r.x = r.leftMargin + r.numberWidth
+	r.y = r.columnTop()
+}
+
+func (r *RenderContext) columnTop() float64 {
 	if !r.tall && r.currentColumn > r.numColumns/2 {
-		r.y = r.top + r.renderHeight + r.columnSep + r.clueLineHeight
-	} else {
-		r.y = r.titleY
+		return r.top + r.renderHeight + r.columnSep + r.clueLineHeight
 	}
+	return r.titleY
 }
 
 func (r *RenderContext) findLayouts() {
@@ -300,6 +309,7 @@ func (r *RenderContext) findLayouts() {
 		// Don't use odd numbers of columns for non-tall puzzles.
 		colIncr = 2
 	}
+	layouts := make(map[int]Layout)
 	for n := minColumns; n <= maxColumns; n += colIncr {
 		for ps := maxCluePoints; ps >= minCluePoints; ps -= cluePointsIncr {
 			r.setLayout(n, ps)
@@ -307,26 +317,39 @@ func (r *RenderContext) findLayouts() {
 			r.drawTitle()
 			r.drawClues()
 			r.rendering = true
-			if r.cluesFit {
-				r.layouts = append(r.layouts, Layout{
-					NumColumns: n,
-					PointSize:  ps,
-					Score:      r.layoutScore(),
-				})
-				break
+			if !r.cluesFit {
+				continue
+			}
+			score := r.layoutScore()
+			cur := layouts[n].Score
+			if score <= cur {
+				continue
+			}
+			layouts[n] = Layout{
+				NumColumns: n,
+				PointSize:  ps,
+				Score:      score,
 			}
 		}
 	}
-	// Find best layout.
+	// Collect layouts and sort them.
+	r.Layouts = make(Layouts, len(layouts))
+	i := 0
+	for _, layout := range layouts {
+		r.Layouts[i] = layout
+		i++
+	}
+	sort.Sort(Layouts(r.Layouts))
+	// Find index of the best score.
 	bestScore := 0.0
 	bestLayout := -1
-	for i, layout := range r.layouts {
+	for i, layout := range r.Layouts {
 		if layout.Score > bestScore {
 			bestScore = layout.Score
 			bestLayout = i
 		}
 	}
-	r.bestLayout = bestLayout
+	r.BestLayout = bestLayout
 }
 
 func (r *RenderContext) setLayout(numCols int, cluePoints float64) {
@@ -347,23 +370,30 @@ func (r *RenderContext) getColumnWidth(n int) float64 {
 
 func (r *RenderContext) markPage(i int) {
 	pdf := r.pdf
-	layout := r.layouts[i]
-	info := fmt.Sprintf("%0.2fpt %0.3f ", layout.PointSize, layout.Score)
+	layout := r.Layouts[i]
+	cw := r.getColumnWidth(layout.NumColumns)
+	info := fmt.Sprintf("%.0f %.2fpt %.3f ", cw, layout.PointSize, layout.Score)
 	pdf.SetFont(font, "", 7)
-	w := pdf.GetStringWidth(info)
 	x, y := r.pageWidth-r.margin, r.pageHeight-0.5*r.margin
+	w := pdf.GetStringWidth(info)
 	pdf.Text(x-w, y, info)
-	if i == r.bestLayout {
+	if i == r.BestLayout {
 		pdf.SetFont("Symbol", "", 13)
 		pdf.Text(x, y, "\x34")
 	}
 }
 
 // layoutScore calculates a "goodness" score for the current layout.
-// Larger point size is preferred, then fewer columns.
-// TO DO: add penalty for blank or under-filled columns.
+// Larger point size and wider columns are preferred; under-filled columns are penalized.
 func (r *RenderContext) layoutScore() float64 {
-	n := float64(maxColumns-r.numColumns) / float64(maxColumns-minColumns)
 	p := (r.cluePoints - minCluePoints) / (maxCluePoints - minCluePoints)
-	return 10*p + n
+	w := r.columnWidth / r.pageWidth
+	top := r.columnTop()
+	underfill := (r.pageHeight - r.y) / (r.pageHeight - top)
+	return p + 1.1*w - underfill
 }
+
+// sort.Interface for Layouts using NumColumns as sort key.
+func (v Layouts) Len() int           { return len(v) }
+func (v Layouts) Swap(i, j int)      { v[i], v[j] = v[j], v[i] }
+func (v Layouts) Less(i, j int) bool { return v[i].NumColumns < v[j].NumColumns }
