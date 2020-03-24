@@ -192,3 +192,18 @@ func TestLayouts(t *testing.T) {
 		})
 	}
 }
+
+const benchmarkPuzzle = "Aug0810.puz"
+
+func BenchmarkRender(b *testing.B) {
+	p, err := Read(path.Join(testDataDir, benchmarkPuzzle))
+	if err != nil {
+		b.Errorf("%s", err)
+		return
+	}
+	pdf := gofpdf.New("L", "pt", "Letter", "")
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		p.NewRenderContext(pdf)
+	}
+}
