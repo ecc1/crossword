@@ -29,50 +29,104 @@ type (
 		Height int
 
 		NumClues  int
+		AllClues  []string
 		Scrambled bool
-		Clues     []string
 
-		AcrossNumbers []int
-		AcrossClues   IndexedStrings
-		AcrossAnswers IndexedStrings
-
-		DownNumbers []int
-		DownClues   IndexedStrings
-		DownAnswers IndexedStrings
+		// Clue information indexed by direction.
+		Dir []Clue
 
 		// Height * Width grids.
-		Numbers  [][]int
-		Circles  Grid
-		Solution Grid
+		numbers  Grid
+		solution Grid
+		circles  Grid
 	}
+
+	Direction int
+
+	// Per-direction clue information.
+	Clue struct {
+		// Clue numbers in increasing order.
+		Numbers []int
+		// Reverse map from clue number to index in Numbers.
+		Indexes map[int]int
+		// Clues indexed by their number.
+		Clues IndexedStrings
+		// Answers indexed by their number.
+		Answers IndexedStrings
+		// Positions[n] is the position of the square with number n.
+		Positions IndexedPositions
+		// Words[n] is the Word for answer number n, in left-right or top-down order.
+		Words IndexedWords
+		// Start[y][x] is clue number for the word that passes through square (x, y).
+		// May be zero for uncrossed words in unusual puzzles.
+		Start Grid
+	}
+
+	Grid [][]uint8
+
+	Position struct {
+		X int
+		Y int
+	}
+
+	Word []Position
+
+	IndexedStrings   map[int]string
+	IndexedPositions map[int]Position
+	IndexedWords     map[int]Word
 
 	Checksums struct {
 		Global    uint16
 		Scrambled uint16
 		Magic     uint64
 	}
-
-	IndexedStrings map[int]string
-
-	Grid [][]byte
 )
 
-func (p *Puzzle) IsBlack(x int, y int) bool {
+const (
+	Across Direction = 0
+	Down   Direction = 1
+)
+
+func (dir Direction) String() string {
+	switch dir {
+	case Across:
+		return "ACROSS"
+	case Down:
+		return "DOWN"
+	}
+	panic(fmt.Sprintf("Direction %d", dir))
+}
+
+func NewPosition(x, y int) Position {
+	return Position{X: x, Y: y}
+}
+
+func (pos Position) String() string {
+	return fmt.Sprintf("(%d, %d)", pos.X, pos.Y)
+}
+
+func (p *Puzzle) IsBlack(x, y int) bool {
 	if x < 0 || x >= p.Width || y < 0 || y >= p.Height {
 		return true
 	}
-	return p.Solution[y][x] == '.'
+	return p.solution[y][x] == '.'
 }
 
-func (p *Puzzle) IsCircled(x int, y int) bool {
-	if len(p.Circles) == 0 {
+func (p *Puzzle) IsCircled(x, y int) bool {
+	if len(p.circles) == 0 {
 		return false
 	}
-	return p.Circles[y][x] == 0x80
+	return p.circles[y][x] == 0x80
 }
 
-func (p *Puzzle) CellNumber(x int, y int) int {
-	return int(p.Numbers[y][x])
+// PositionNumber(pos) is the number for square at position pos, or 0.
+func (p *Puzzle) PositionNumber(pos Position) int {
+	return p.SquareNumber(pos.X, pos.Y)
+}
+
+// SquareNumber(x, y) is the number for square (x, y), or 0.
+func (p *Puzzle) SquareNumber(x, y int) int {
+	return int(p.numbers[y][x])
 }
 
 func Read(file string) (*Puzzle, error) {
@@ -97,7 +151,7 @@ func Decode(puz []byte) (*Puzzle, error) {
 
 	w, h := p.Width, p.Height
 	grids := puz // remember start of solution and fill grids for global checksum
-	p.Solution, puz, err = p.readGrid(puz)
+	p.solution, puz, err = p.readGrid(puz)
 	if err != nil {
 		return nil, fmt.Errorf("malformed solution section in %d×%d puzzle: %s", w, h, err)
 	}
@@ -110,15 +164,17 @@ func Decode(puz []byte) (*Puzzle, error) {
 	p.Author, puz = readString(puz)
 	p.Copyright, puz = readString(puz)
 
-	p.Numbers = p.gridNumbers()
-	p.Clues = make([]string, p.NumClues)
-	for i := range p.Clues {
-		p.Clues[i], puz = readString(puz)
+	p.numbers = p.makeGrid()
+	p.AllClues = make([]string, p.NumClues)
+	for i := range p.AllClues {
+		p.AllClues[i], puz = readString(puz)
 	}
 	p.indexClues()
-	n := len(p.AcrossNumbers) + len(p.DownNumbers)
+	numAcross := len(p.Dir[Across].Numbers)
+	numDown := len(p.Dir[Down].Numbers)
+	n := numAcross + numDown
 	if n != p.NumClues {
-		return nil, fmt.Errorf("%d clues were indexed instead of %d", n, p.NumClues)
+		return nil, fmt.Errorf("%d %v + %d %v clues were indexed instead of %d", numAcross, Across, numDown, Down, p.NumClues)
 	}
 
 	p.Notepad, puz = readString(puz)
@@ -208,10 +264,10 @@ func PuzzleBytes(s string) []byte {
 	return v
 }
 
-func (p *Puzzle) gridNumbers() [][]int {
-	g := make([][]int, p.Height)
+func (p *Puzzle) makeGrid() Grid {
+	g := make(Grid, p.Height)
 	for i := range g {
-		g[i] = make([]int, p.Width)
+		g[i] = make([]uint8, p.Width)
 	}
 	return g
 }
@@ -220,9 +276,9 @@ func (p *Puzzle) readGrid(v []byte) (Grid, []byte, error) {
 	if len(v) < p.Height*p.Width {
 		return nil, nil, fmt.Errorf("only %d bytes of grid data instead of %d", len(v), p.Height*p.Width)
 	}
-	g := make(Grid, p.Height)
+	g := p.makeGrid()
 	for i := range g {
-		g[i] = v[:p.Width]
+		copy(g[i], v[:p.Width])
 		v = v[p.Width:]
 	}
 	return g, v, nil
@@ -250,7 +306,7 @@ func (p *Puzzle) readExtension(v []byte) ([]byte, error) {
 			return nil, fmt.Errorf("%s extension contains %d bytes of data instead of %d", code, len(data), p.Height*p.Width)
 		}
 		var err error
-		p.Circles, _, err = p.readGrid(data)
+		p.circles, _, err = p.readGrid(data)
 		if err != nil {
 			return nil, fmt.Errorf("%s extension: %s", code, err)
 		}
@@ -264,13 +320,18 @@ func (p *Puzzle) readExtension(v []byte) ([]byte, error) {
 	return v[count+1:], nil
 }
 
-// indexClues determines clue numbers; builds the numbers, clues, and answers maps;
-// and enters the numbers in the Numbers grid.
+// indexClues determines clue numbers and indexes their positions, numbers, clues, and answers.
 func (p *Puzzle) indexClues() {
-	p.AcrossClues = make(IndexedStrings)
-	p.AcrossAnswers = make(IndexedStrings)
-	p.DownClues = make(IndexedStrings)
-	p.DownAnswers = make(IndexedStrings)
+	p.Dir = make([]Clue, 2)
+	for i := range p.Dir {
+		d := &p.Dir[i]
+		d.Indexes = make(map[int]int)
+		d.Clues = make(IndexedStrings)
+		d.Answers = make(IndexedStrings)
+		d.Positions = make(IndexedPositions)
+		d.Words = make(IndexedWords)
+		d.Start = p.makeGrid()
+	}
 	c := 0 // clue index
 	n := 1 // square number
 	for y := 0; y < p.Height; y++ {
@@ -280,47 +341,54 @@ func (p *Puzzle) indexClues() {
 			}
 			numbered := false
 			if p.IsBlack(x-1, y) && !p.IsBlack(x+1, y) {
-				p.AcrossNumbers = append(p.AcrossNumbers, n)
-				p.AcrossClues[n] = p.Clues[c]
-				p.AcrossAnswers[n] = p.readAcrossAnswer(x, y)
+				p.readAnswer(n, Across, x, y, p.AllClues[c])
 				numbered = true
 				c++
 			}
 			if p.IsBlack(x, y-1) && !p.IsBlack(x, y+1) {
-				p.DownNumbers = append(p.DownNumbers, n)
-				p.DownClues[n] = p.Clues[c]
-				p.DownAnswers[n] = p.readDownAnswer(x, y)
+				p.readAnswer(n, Down, x, y, p.AllClues[c])
 				numbered = true
 				c++
 			}
 			if numbered {
-				p.Numbers[y][x] = n
+				p.numbers[y][x] = uint8(n)
 				n++
 			}
 		}
 	}
 }
 
-func (p *Puzzle) readAcrossAnswer(x int, y int) string {
+func (p *Puzzle) readAnswer(n int, dir Direction, x, y int, clue string) {
+	d := &p.Dir[dir]
 	var sb strings.Builder
-	for i := x; i < p.Width; i++ {
-		if p.IsBlack(i, y) {
-			return sb.String()
+	var word Word
+	switch dir {
+	case Across:
+		for i := x; i < p.Width; i++ {
+			if p.IsBlack(i, y) {
+				break
+			}
+			word = append(word, NewPosition(i, y))
+			sb.WriteByte(p.solution[y][i])
+			d.Start[y][i] = uint8(n)
 		}
-		sb.WriteByte(p.Solution[y][i])
-	}
-	return sb.String()
-}
-
-func (p *Puzzle) readDownAnswer(x int, y int) string {
-	var sb strings.Builder
-	for j := y; j < p.Height; j++ {
-		if p.IsBlack(x, j) {
-			return sb.String()
+	case Down:
+		for j := y; j < p.Height; j++ {
+			if p.IsBlack(x, j) {
+				break
+			}
+			word = append(word, NewPosition(x, j))
+			sb.WriteByte(p.solution[j][x])
+			d.Start[j][x] = uint8(n)
 		}
-		sb.WriteByte(p.Solution[j][x])
 	}
-	return sb.String()
+	answer := sb.String()
+	d.Positions[n] = NewPosition(x, y)
+	d.Numbers = append(d.Numbers, n)
+	d.Indexes[n] = len(d.Numbers) - 1
+	d.Clues[n] = clue
+	d.Answers[n] = answer
+	d.Words[n] = word
 }
 
 func checksum(data []byte, c uint16) uint16 {
@@ -369,7 +437,7 @@ func (p *Puzzle) textChecksum(c uint16) uint16 {
 	c = zStringChecksum(p.Title, c)
 	c = zStringChecksum(p.Author, c)
 	c = zStringChecksum(p.Copyright, c)
-	for _, clue := range p.Clues {
+	for _, clue := range p.AllClues {
 		c = stringChecksum(clue, c)
 	}
 	if p.Version >= "1.3" {

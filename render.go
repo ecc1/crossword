@@ -168,7 +168,7 @@ func (r *RenderContext) drawGrid() {
 				pdf.Rect(x, y, 1, 1, "F")
 				continue
 			}
-			n := puz.CellNumber(i, j)
+			n := puz.SquareNumber(i, j)
 			if n != 0 {
 				pdf.Text(x+0.05, y+numberSize, fmt.Sprintf("%d", n))
 			}
@@ -195,30 +195,33 @@ func (r *RenderContext) drawClues() {
 	r.cluesFit = true
 	puz := r.puz
 	ch := r.clueLineHeight
-	r.doClues("ACROSS", puz.AcrossNumbers, puz.AcrossClues)
+	r.doClues(Across)
 	// Make sure first DOWN clue fits along with the heading.
-	h, _ := r.clueHeight(puz.DownClues[puz.DownNumbers[0]])
+	h, _ := r.clueHeight(puz.Dir[Down].Clues[puz.Dir[Down].Numbers[0]])
 	if r.y+1.75*ch+h > r.pageHeight-r.margin {
 		r.nextColumn()
 	} else {
 		r.y += 0.5 * ch
 	}
-	r.doClues("DOWN", puz.DownNumbers, puz.DownClues)
+	r.doClues(Down)
 }
 
 // doClues renders the specified clues in the current layout.
 // If r.rendering is false, the actual PDF rendering is not done,
 // just the positioning, and r.cluesFit will indicate whether they fit on the page.
-func (r *RenderContext) doClues(heading string, numbers []int, clues IndexedStrings) {
+func (r *RenderContext) doClues(dir Direction) {
 	if !r.cluesFit {
 		return
 	}
+	d := &r.puz.Dir[dir]
+	numbers := d.Numbers
+	clues := d.Clues
 	pdf := r.pdf
 	ch := r.clueLineHeight
 	rendering := r.rendering
 	pdf.SetFont(font, "B", r.cluePoints)
 	if rendering {
-		pdf.Text(r.x, r.y, heading)
+		pdf.Text(r.x, r.y, dir.String())
 	}
 	r.y += 1.25 * ch
 	for _, n := range numbers {
