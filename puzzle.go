@@ -4,8 +4,10 @@ package acrosslite
 // based on https://github.com/alexdej/puzpy
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math/bits"
 	"strings"
@@ -85,6 +87,9 @@ type (
 const (
 	Across Direction = 0
 	Down   Direction = 1
+
+	blackSquare   = '.'
+	circledSquare = 0x80
 )
 
 func (dir Direction) String() string {
@@ -105,21 +110,58 @@ func (pos Position) String() string {
 	return fmt.Sprintf("(%d, %d)", pos.X, pos.Y)
 }
 
+func NewGrid(w, h int) Grid {
+	g := make(Grid, h)
+	for i := range g {
+		g[i] = make([]uint8, w)
+	}
+	return g
+}
+
+func (g Grid) Write(w io.Writer) {
+	f := bufio.NewWriter(w)
+	for y := 0; y < len(g); y++ {
+		f.Write(g[y])
+		f.WriteByte('\n')
+	}
+	f.Flush()
+}
+
+func (g Grid) String() string {
+	var sb strings.Builder
+	g.Write(&sb)
+	return sb.String()
+}
+
+func (g Grid) Contents() []byte {
+	var buf bytes.Buffer
+	g.Write(&buf)
+	return buf.Bytes()
+}
+
 func (p *Puzzle) IsBlack(x, y int) bool {
 	if x < 0 || x >= p.Width || y < 0 || y >= p.Height {
 		return true
 	}
-	return p.solution[y][x] == '.'
+	return p.solution[y][x] == blackSquare
 }
 
 func (p *Puzzle) IsCircled(x, y int) bool {
 	if len(p.circles) == 0 {
 		return false
 	}
-	return p.circles[y][x] == 0x80
+	return p.circles[y][x] == circledSquare
 }
 
-// PositionNumber(pos) is the number for square at position pos, or 0.
+func (p *Puzzle) Correct(x, y int, c byte) bool {
+	return p.solution[y][x] == c
+}
+
+func (p *Puzzle) Solution() string {
+	return p.solution.String()
+}
+
+// PositionNumber(pos) is the number for the square at position pos, or 0.
 func (p *Puzzle) PositionNumber(pos Position) int {
 	return p.SquareNumber(pos.X, pos.Y)
 }
@@ -164,7 +206,7 @@ func Decode(puz []byte) (*Puzzle, error) {
 	p.Author, puz = readString(puz)
 	p.Copyright, puz = readString(puz)
 
-	p.numbers = p.makeGrid()
+	p.numbers = p.MakeGrid()
 	p.AllClues = make([]string, p.NumClues)
 	for i := range p.AllClues {
 		p.AllClues[i], puz = readString(puz)
@@ -264,19 +306,15 @@ func PuzzleBytes(s string) []byte {
 	return v
 }
 
-func (p *Puzzle) makeGrid() Grid {
-	g := make(Grid, p.Height)
-	for i := range g {
-		g[i] = make([]uint8, p.Width)
-	}
-	return g
+func (p *Puzzle) MakeGrid() Grid {
+	return NewGrid(p.Width, p.Height)
 }
 
 func (p *Puzzle) readGrid(v []byte) (Grid, []byte, error) {
 	if len(v) < p.Height*p.Width {
 		return nil, nil, fmt.Errorf("only %d bytes of grid data instead of %d", len(v), p.Height*p.Width)
 	}
-	g := p.makeGrid()
+	g := p.MakeGrid()
 	for i := range g {
 		copy(g[i], v[:p.Width])
 		v = v[p.Width:]
@@ -330,7 +368,7 @@ func (p *Puzzle) indexClues() {
 		d.Answers = make(IndexedStrings)
 		d.Positions = make(IndexedPositions)
 		d.Words = make(IndexedWords)
-		d.Start = p.makeGrid()
+		d.Start = p.MakeGrid()
 	}
 	c := 0 // clue index
 	n := 1 // square number
