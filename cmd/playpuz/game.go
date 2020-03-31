@@ -13,6 +13,7 @@ const (
 
 	blackSquare = '.'
 	emptySquare = ' '
+	wrongSquare = '?'
 )
 
 var (
@@ -71,7 +72,7 @@ func puzzleIsSolved() bool {
 			if puz.IsBlack(x, y) {
 				continue
 			}
-			if !puz.Correct(x, y, cells[y][x]) {
+			if cells[y][x] != puz.Answer(x, y) {
 				return false
 			}
 		}
@@ -245,4 +246,42 @@ func highlightClues() {
 		i := d.Indexes[num]
 		selectClue(acrosslite.Direction(dir), i)
 	}
+}
+
+func checkSquare(x, y int) {
+	c := cells[y][x]
+	if c == emptySquare || c == puz.Answer(x, y) {
+		return
+	}
+	cells[y][x] = wrongSquare
+	redrawCell(x, y)
+}
+
+func checkWord() {
+	for _, pos := range curWord {
+		checkSquare(pos.X, pos.Y)
+	}
+}
+
+func checkPuzzle() {
+	for y := 0; y < puz.Height; y++ {
+		for x := 0; x < puz.Width; x++ {
+			if puz.IsBlack(x, y) {
+				continue
+			}
+			checkSquare(x, y)
+		}
+	}
+}
+
+func solveWord() {
+	for _, pos := range curWord {
+		x, y := pos.X, pos.Y
+		cells[y][x] = puz.Answer(x, y)
+		redrawCell(x, y)
+	}
+}
+
+func solvePuzzle() {
+	setContents(puz.SolutionBytes())
 }

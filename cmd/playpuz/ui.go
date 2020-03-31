@@ -40,6 +40,7 @@ var (
 	normalColor = []float64{1, 1, 1, 1}
 	activeColor = []float64{0, 1, 0.5, 1}
 	wordColor   = []float64{0.75, 0.75, 0.75, 1}
+	wrongColor  = []float64{0.9, 0.3, 0.3, 1}
 )
 
 func initUI() {
@@ -187,13 +188,15 @@ func drawCell(x int, y int, d *gtk.DrawingArea, c *cairo.Context) {
 		return
 	}
 	// Background color.
-	if isActive(x, y) {
-		setColor(c, activeColor)
+	bg := normalColor
+	if cells[y][x] == wrongSquare {
+		bg = wrongColor
+	} else if isActive(x, y) {
+		bg = activeColor
 	} else if inActiveWord(x, y) {
-		setColor(c, wordColor)
-	} else {
-		setColor(c, normalColor)
+		bg = wordColor
 	}
+	setColor(c, bg)
 	c.Rectangle(0, 0, 1, 1)
 	c.Fill()
 	// Grid lines.

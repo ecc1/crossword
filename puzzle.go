@@ -153,12 +153,16 @@ func (p *Puzzle) IsCircled(x, y int) bool {
 	return p.circles[y][x] == circledSquare
 }
 
-func (p *Puzzle) Correct(x, y int, c byte) bool {
-	return p.solution[y][x] == c
+func (p *Puzzle) Answer(x, y int) byte {
+	return p.solution[y][x]
 }
 
 func (p *Puzzle) Solution() string {
 	return p.solution.String()
+}
+
+func (p *Puzzle) SolutionBytes() []byte {
+	return p.solution.Contents()
 }
 
 // PositionNumber(pos) is the number for the square at position pos, or 0.

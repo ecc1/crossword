@@ -13,20 +13,58 @@ var (
 func makeMenu() {
 	menu, _ = gtk.MenuNew()
 
-	notepad, _ := gtk.MenuItemNewWithLabel("Notepad")
-	notepad.Connect("activate", showNotepad)
-	notepad.Show()
-	menu.Append(notepad)
+	showNotepadItem, _ := gtk.MenuItemNewWithLabel("Notepad")
+	if puz.Notepad != "" {
+		showNotepadItem.Connect("activate", showNotepad)
+	} else {
+		showNotepadItem.SetSensitive(false)
+	}
+	showNotepadItem.Show()
+	menu.Append(showNotepadItem)
 
-	load, _ := gtk.MenuItemNewWithLabel("Load")
-	load.Connect("activate", loadPuzzle)
-	load.Show()
-	menu.Append(load)
+	checkMenu, _ := gtk.MenuNew()
 
-	save, _ := gtk.MenuItemNewWithLabel("Save")
-	save.Connect("activate", savePuzzle)
-	save.Show()
-	menu.Append(save)
+	checkWordItem, _ := gtk.MenuItemNewWithLabel("Check word")
+	checkWordItem.Connect("activate", checkWord)
+	checkWordItem.Show()
+	checkMenu.Append(checkWordItem)
+
+	checkPuzzleItem, _ := gtk.MenuItemNewWithLabel("Check puzzle")
+	checkPuzzleItem.Connect("activate", checkPuzzle)
+	checkPuzzleItem.Show()
+	checkMenu.Append(checkPuzzleItem)
+
+	checkMenuItem, _ := gtk.MenuItemNewWithLabel("Check")
+	checkMenuItem.SetSubmenu(checkMenu)
+	checkMenuItem.Show()
+	menu.Append(checkMenuItem)
+
+	solveMenu, _ := gtk.MenuNew()
+
+	solveWordItem, _ := gtk.MenuItemNewWithLabel("Solve word")
+	solveWordItem.Connect("activate", solveWord)
+	solveWordItem.Show()
+	solveMenu.Append(solveWordItem)
+
+	solvePuzzleItem, _ := gtk.MenuItemNewWithLabel("Solve puzzle")
+	solvePuzzleItem.Connect("activate", solvePuzzle)
+	solvePuzzleItem.Show()
+	solveMenu.Append(solvePuzzleItem)
+
+	solveMenuItem, _ := gtk.MenuItemNewWithLabel("Solve")
+	solveMenuItem.SetSubmenu(solveMenu)
+	solveMenuItem.Show()
+	menu.Append(solveMenuItem)
+
+	loadPuzzleItem, _ := gtk.MenuItemNewWithLabel("Load")
+	loadPuzzleItem.Connect("activate", loadPuzzle)
+	loadPuzzleItem.Show()
+	menu.Append(loadPuzzleItem)
+
+	savePuzzleItem, _ := gtk.MenuItemNewWithLabel("Save")
+	savePuzzleItem.Connect("activate", savePuzzle)
+	savePuzzleItem.Show()
+	menu.Append(savePuzzleItem)
 
 	quit, _ := gtk.MenuItemNewWithLabel("Quit")
 	quit.Connect("activate", gtk.MainQuit)
