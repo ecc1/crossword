@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ecc1/acrosslite"
+	"github.com/ecc1/crossword"
 )
 
 var (
-	puz *acrosslite.Puzzle
+	puz *crossword.Puzzle
 )
 
 func main() {
@@ -16,7 +16,7 @@ func main() {
 		fail(fmt.Errorf("single PUZ file required"))
 	}
 	var err error
-	puz, err = acrosslite.Read(os.Args[1])
+	puz, err = crossword.Read(os.Args[1])
 	if err != nil {
 		fail(err)
 	}

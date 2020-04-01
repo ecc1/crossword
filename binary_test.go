@@ -1,4 +1,4 @@
-package acrosslite
+package crossword
 
 import (
 	"fmt"

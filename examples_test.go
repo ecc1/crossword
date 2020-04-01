@@ -1,4 +1,4 @@
-package acrosslite
+package crossword
 
 // Example Puzzle structs for tests.
 // Derived fields are not included.

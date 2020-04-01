@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ecc1/acrosslite"
+	"github.com/ecc1/crossword"
 )
 
 var (
@@ -17,7 +17,7 @@ func main() {
 	if flag.NArg() != 1 {
 		fail(fmt.Errorf("single PUZ file required"))
 	}
-	p, err := acrosslite.Read(flag.Arg(0))
+	p, err := crossword.Read(flag.Arg(0))
 	if err != nil {
 		fail(err)
 	}

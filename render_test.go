@@ -1,4 +1,4 @@
-package acrosslite
+package crossword
 
 import (
 	"path"
@@ -200,7 +200,7 @@ func TestLayouts(t *testing.T) {
 		})
 	}
 	// Save PDF for further examination.
-	pdf.OutputFileAndClose("/tmp/acrosslite_render_test.pdf")
+	pdf.OutputFileAndClose("/tmp/crossword_render_test.pdf")
 }
 
 const benchmarkPuzzle = "Aug0810.puz"

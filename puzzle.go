@@ -1,7 +1,8 @@
-package acrosslite
-
-// AcrossLite crossword puzzle reader,
-// based on https://github.com/alexdej/puzpy
+/*
+Package crossword provides functions to read crossword puzzles
+in the AcrossLite PUZ file format and render them as PDF files.
+*/
+package crossword
 
 import (
 	"bufio"

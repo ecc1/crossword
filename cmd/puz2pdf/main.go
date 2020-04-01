@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/ecc1/acrosslite"
+	"github.com/ecc1/crossword"
 	"github.com/jung-kurt/gofpdf"
 )
 
@@ -54,7 +54,7 @@ func setupOutput() (*gofpdf.Fpdf, error) {
 }
 
 func puz2pdf(file string, pdf *gofpdf.Fpdf) error {
-	puz, err := acrosslite.Read(file)
+	puz, err := crossword.Read(file)
 	if err != nil {
 		return err
 	}

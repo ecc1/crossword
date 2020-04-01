@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/ecc1/acrosslite"
+	"github.com/ecc1/crossword"
 )
 
 const (
-	Across = acrosslite.Across
-	Down   = acrosslite.Down
+	Across = crossword.Across
+	Down   = crossword.Down
 
 	blackSquare = '.'
 	emptySquare = ' '
@@ -17,12 +17,12 @@ const (
 )
 
 var (
-	cells        acrosslite.Grid
-	homePos      acrosslite.Position
-	endPos       acrosslite.Position
-	cur          acrosslite.Position
-	curWord      acrosslite.Word
-	curDirection acrosslite.Direction
+	cells        crossword.Grid
+	homePos      crossword.Position
+	endPos       crossword.Position
+	cur          crossword.Position
+	curWord      crossword.Word
+	curDirection crossword.Direction
 )
 
 func initGame() {
@@ -133,7 +133,7 @@ func changeDirection() {
 	setActivePos(cur)
 }
 
-func setActivePos(pos acrosslite.Position) {
+func setActivePos(pos crossword.Position) {
 	cur = pos
 	d := &puz.Dir[curDirection]
 	oldWord := curWord
@@ -149,10 +149,10 @@ func setActivePos(pos acrosslite.Position) {
 }
 
 func setActive(x, y int) {
-	setActivePos(acrosslite.NewPosition(x, y))
+	setActivePos(crossword.NewPosition(x, y))
 }
 
-func redrawWord(word acrosslite.Word) {
+func redrawWord(word crossword.Word) {
 	for _, pos := range word {
 		redrawCell(pos.X, pos.Y)
 	}
@@ -163,10 +163,10 @@ func isActive(x, y int) bool {
 }
 
 func inActiveWord(x, y int) bool {
-	return positionInWord(acrosslite.NewPosition(x, y), curWord) != -1
+	return positionInWord(crossword.NewPosition(x, y), curWord) != -1
 }
 
-func positionInWord(pos acrosslite.Position, word acrosslite.Word) int {
+func positionInWord(pos crossword.Position, word crossword.Word) int {
 	for i, p := range word {
 		if p == pos {
 			return i
@@ -251,7 +251,7 @@ func highlightClues() {
 			continue
 		}
 		i := d.Indexes[num]
-		selectClue(acrosslite.Direction(dir), i)
+		selectClue(crossword.Direction(dir), i)
 	}
 }
 

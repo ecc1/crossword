@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/ecc1/acrosslite"
+	"github.com/ecc1/crossword"
 )
 
 func main() {
@@ -27,7 +27,7 @@ func main() {
 	default:
 		fail(fmt.Errorf("Usage: %s file.puz [key]", os.Args[0]))
 	}
-	puz, err := acrosslite.Read(file)
+	puz, err := crossword.Read(file)
 	if err != nil {
 		fail(err)
 	}

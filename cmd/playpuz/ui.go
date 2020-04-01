@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/ecc1/acrosslite"
+	"github.com/ecc1/crossword"
 	"github.com/gotk3/gotk3/cairo"
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
@@ -107,7 +107,7 @@ func makeGrid() gtk.IWidget {
 	return a
 }
 
-func makeClues(dir acrosslite.Direction) gtk.IWidget {
+func makeClues(dir crossword.Direction) gtk.IWidget {
 	d := &puz.Dir[dir]
 	h, _ := gtk.LabelNew("")
 	h.SetMarkup(fmt.Sprintf("<b>%s</b>", dir))
@@ -132,7 +132,7 @@ func makeClues(dir acrosslite.Direction) gtk.IWidget {
 	return b
 }
 
-func makeClue(dir acrosslite.Direction, n int) gtk.IWidget {
+func makeClue(dir crossword.Direction, n int) gtk.IWidget {
 	cl, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 0)
 	num, _ := gtk.LabelNew("")
 	num.SetMarkup(fmt.Sprintf("<small><b>%d</b></small>  ", n))
@@ -150,14 +150,14 @@ func makeClue(dir acrosslite.Direction, n int) gtk.IWidget {
 	return cl
 }
 
-func chooseRow(dir acrosslite.Direction, w gtk.IWidget, row *gtk.ListBoxRow) {
+func chooseRow(dir crossword.Direction, w gtk.IWidget, row *gtk.ListBoxRow) {
 	i := row.GetIndex()
 	curDirection = dir
 	n := puz.Dir[dir].Numbers[i]
 	activateFromClue(n)
 }
 
-func selectClue(dir acrosslite.Direction, i int) {
+func selectClue(dir crossword.Direction, i int) {
 	lb := clueLists[dir]
 	cl := lb.GetRowAtIndex(i)
 	lb.SelectRow(cl)

@@ -1,4 +1,4 @@
-module github.com/ecc1/acrosslite
+module github.com/ecc1/crossword
 
 go 1.14
 
