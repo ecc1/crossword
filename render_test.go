@@ -2,6 +2,7 @@ package acrosslite
 
 import (
 	"path"
+	"sync"
 	"testing"
 
 	"github.com/jung-kurt/gofpdf"
@@ -67,7 +68,7 @@ func TestLayouts(t *testing.T) {
 		"Aug2110.puz": 4,
 		"Aug2210.puz": 6,
 		"Aug2810.puz": 4,
-		"Aug2910.puz": 6,
+		"Aug2910.puz": 4,
 		"Dec0410.puz": 4,
 		"Dec0510.puz": 6,
 		"Dec1110.puz": 4,
@@ -173,6 +174,8 @@ func TestLayouts(t *testing.T) {
 		"Sep2510.puz": 4,
 		"Sep2610.puz": 6,
 	}
+	pdf := gofpdf.New("L", "pt", "Letter", "")
+	var m sync.Mutex
 	for _, file := range testFiles() {
 		base := path.Base(file)
 		t.Run(base, func(t *testing.T) {
@@ -186,15 +189,18 @@ func TestLayouts(t *testing.T) {
 				t.Errorf("%s", err)
 				return
 			}
-			pdf := gofpdf.New("L", "pt", "Letter", "")
+			m.Lock()
 			rc := p.NewRenderContext(pdf)
-			pdf.Close()
+			rc.RenderAll()
+			m.Unlock()
 			n := rc.Layouts[rc.BestLayout].NumColumns
 			if n != best {
 				t.Errorf("got best layout = %d columns, want %d columns", n, best)
 			}
 		})
 	}
+	// Save PDF for further examination.
+	pdf.OutputFileAndClose("/tmp/acrosslite_render_test.pdf")
 }
 
 const benchmarkPuzzle = "Aug0810.puz"
