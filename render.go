@@ -3,7 +3,6 @@ package acrosslite
 import (
 	"fmt"
 	"math"
-	"os"
 	"sort"
 
 	"github.com/jung-kurt/gofpdf"
@@ -22,8 +21,6 @@ const (
 	interClueFrac   = 0.2
 	lineWidthPoints = 0.5
 	blackLevel      = 0.70
-
-	debug = true
 )
 
 type (
@@ -283,16 +280,7 @@ func (r *RenderContext) nextColumn() {
 			return
 		}
 		// Bug: this layout should have been avoided by findLayouts().
-		msg := fmt.Sprintf("clues do not fit %d-column format", r.numColumns)
-		if !debug {
-			panic(msg)
-		}
-		fmt.Fprintf(os.Stderr, "%s [%s]\n", msg, r.puz.Title)
-		// Ensure that tests for single-page rendering will fail.
-		r.pdf.AddPage()
-		r.leftMargin = r.margin
-		r.y = r.margin
-		return
+		panic(fmt.Sprintf("clues do not fit %d-column format", r.numColumns))
 	}
 	r.leftMargin += r.columnWidth + r.columnSep
 	r.x = r.leftMargin + r.numberWidth
