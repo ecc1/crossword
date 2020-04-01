@@ -13,6 +13,11 @@ var (
 func makeMenu() {
 	menu, _ = gtk.MenuNew()
 
+	AboutItem, _ := gtk.MenuItemNewWithLabel("About")
+	AboutItem.Connect("activate", about)
+	AboutItem.Show()
+	menu.Append(AboutItem)
+
 	showNotepadItem, _ := gtk.MenuItemNewWithLabel("Notepad")
 	if puz.Notepad != "" {
 		showNotepadItem.Connect("activate", showNotepad)
@@ -70,6 +75,12 @@ func makeMenu() {
 	quit.Connect("activate", gtk.MainQuit)
 	quit.Show()
 	menu.Append(quit)
+}
+
+func about() {
+	dialog := gtk.MessageDialogNew(window, gtk.DIALOG_MODAL, gtk.MESSAGE_INFO, gtk.BUTTONS_OK, "%s\n%s\n%s", puz.Title, puz.Author, puz.Copyright)
+	dialog.Run()
+	dialog.Destroy()
 }
 
 func showNotepad() {
