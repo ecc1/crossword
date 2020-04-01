@@ -310,6 +310,11 @@ func PuzzleBytes(s string) []byte {
 	return v
 }
 
+func PuzzleString(s string) string {
+	v, _ := charmap.Windows1252.NewEncoder().String(s)
+	return v
+}
+
 func (p *Puzzle) MakeGrid() Grid {
 	return NewGrid(p.Width, p.Height)
 }
