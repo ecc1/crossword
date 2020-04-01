@@ -195,10 +195,17 @@ func moveForward(skip bool) {
 			return
 		}
 	}
-	k := d.Indexes[num]
-	// If not on the last word, advance to the beginning of the next.
-	if k < len(d.Numbers)-1 {
-		setActivePos(d.Positions[d.Numbers[k+1]])
+	// Find the next empty square, if any.
+	for k := d.Indexes[num] + 1; k < len(d.Numbers); k++ {
+		num := d.Numbers[k]
+		word := d.Words[num]
+		for _, pos := range word {
+			if cells[pos.Y][pos.X] == emptySquare {
+				setActivePos(pos)
+				return
+			}
+		}
+		// This word is all filled in, try the next.
 	}
 }
 
