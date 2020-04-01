@@ -5,26 +5,30 @@ import (
 )
 
 type (
-	LayoutScore float64
+	LayoutScore struct {
+		pointSize   float64
+		columnWidth float64
+	}
 )
 
 func (a LayoutScore) String() string {
-	return fmt.Sprintf("%.3f", a)
+	return fmt.Sprintf("%.3f [%.3f %.3f]", a.Scalar(), a.pointSize, a.columnWidth)
 }
 
 func (a LayoutScore) IsBetterThan(b LayoutScore) bool {
-	return a > b
+	return a.Scalar() > b.Scalar()
 }
 
-// layoutScore calculates a "goodness" score for the current layout.
-// Larger point size and wider columns are preferred; under-filled columns are penalized.
+// Scalar calculates a single "goodness" score from the LayoutScore components.
+func (a LayoutScore) Scalar() float64 {
+	return a.pointSize + a.columnWidth
+}
+
+// layoutScore returns the components used to calculate the "goodness" of the layout.
+// Each component is scaled to the interval [0, 1].
 func (r *RenderContext) layoutScore() LayoutScore {
-	p := (r.cluePoints - minCluePoints) / (maxCluePoints - minCluePoints)
-	w := r.columnWidth / r.pageWidth
-	underfill := (r.pageHeight - r.y) / (r.pageHeight - r.columnTop())
-	if underfill > 0.95 {
-		// No penalty for empty columns.
-		underfill = 0
+	return LayoutScore{
+		pointSize:   (r.cluePoints - minCluePoints) / (maxCluePoints - minCluePoints),
+		columnWidth: r.columnWidth / r.pageWidth,
 	}
-	return LayoutScore(1.1*p + 1.2*w - 0.8*underfill)
 }

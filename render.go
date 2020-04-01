@@ -325,7 +325,7 @@ func (r *RenderContext) findLayouts() {
 			}
 			score := r.layoutScore()
 			cur := layouts[n].Score
-			if score <= cur {
+			if !score.IsBetterThan(cur) {
 				continue
 			}
 			layouts[n] = Layout{
@@ -375,7 +375,7 @@ func (r *RenderContext) markPage(i int) {
 	pdf := r.pdf
 	layout := r.Layouts[i]
 	cw := r.getColumnWidth(layout.NumColumns)
-	info := fmt.Sprintf("%.0f %.2fpt %s ", cw, layout.PointSize, layout.Score)
+	info := fmt.Sprintf("%.2fpt %.0f %s ", layout.PointSize, cw, layout.Score)
 	pdf.SetFont(font, "", 7)
 	x, y := r.pageWidth-r.margin, r.pageHeight-0.5*r.margin
 	w := pdf.GetStringWidth(info)
