@@ -18,7 +18,7 @@ const (
 	columnSepPoints = 3.0
 	minCluePoints   = 6.0
 	maxCluePoints   = 12.0
-	cluePointsIncr  = 0.025
+	cluePointsIncr  = 0.05
 	interClueFrac   = 0.2
 	lineWidthPoints = 0.5
 	blackLevel      = 0.70
@@ -61,7 +61,7 @@ type (
 	Layout struct {
 		NumColumns int
 		PointSize  float64
-		Score      float64
+		Score      LayoutScore
 	}
 
 	Layouts []Layout
@@ -132,7 +132,7 @@ func (r *RenderContext) drawTitle() {
 	if !rendering {
 		return
 	}
-	info := string(PuzzleBytes(puz.Author))
+	info := PuzzleString(puz.Author)
 	pdf.SetFont(font, "", 0.9*titlePoints)
 	w := pdf.GetStringWidth(info)
 	pdf.Text(r.pageWidth-m-w, y0, info)
@@ -344,10 +344,10 @@ func (r *RenderContext) findLayouts() {
 	}
 	sort.Sort(Layouts(r.Layouts))
 	// Find index of the best score.
-	bestScore := 0.0
+	var bestScore LayoutScore
 	bestLayout := -1
 	for i, layout := range r.Layouts {
-		if layout.Score > bestScore {
+		if layout.Score.IsBetterThan(bestScore) {
 			bestScore = layout.Score
 			bestLayout = i
 		}
@@ -375,25 +375,15 @@ func (r *RenderContext) markPage(i int) {
 	pdf := r.pdf
 	layout := r.Layouts[i]
 	cw := r.getColumnWidth(layout.NumColumns)
-	info := fmt.Sprintf("%.0f %.2fpt %.3f ", cw, layout.PointSize, layout.Score)
+	info := fmt.Sprintf("%.0f %.2fpt %s ", cw, layout.PointSize, layout.Score)
 	pdf.SetFont(font, "", 7)
 	x, y := r.pageWidth-r.margin, r.pageHeight-0.5*r.margin
 	w := pdf.GetStringWidth(info)
 	pdf.Text(x-w, y, info)
 	if i == r.BestLayout {
-		pdf.SetFont("Symbol", "", 13)
-		pdf.Text(x, y, "\x34")
+		pdf.SetFont("ZapfDingbats", "", 14)
+		pdf.Text(x, y, "\x34") // ✔
 	}
-}
-
-// layoutScore calculates a "goodness" score for the current layout.
-// Larger point size and wider columns are preferred; under-filled columns are penalized.
-func (r *RenderContext) layoutScore() float64 {
-	p := (r.cluePoints - minCluePoints) / (maxCluePoints - minCluePoints)
-	w := r.columnWidth / r.pageWidth
-	top := r.columnTop()
-	underfill := (r.pageHeight - r.y) / (r.pageHeight - top)
-	return p + 1.1*w - underfill
 }
 
 // sort.Interface for Layouts using NumColumns as sort key.
