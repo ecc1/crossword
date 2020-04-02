@@ -5,6 +5,52 @@ import (
 	"fmt"
 )
 
+type (
+	// Key stores a 4-digit decimal key in big-endian order, one digit per byte.
+	Key []uint8
+)
+
+func NewKey() Key {
+	return make(Key, 4)
+}
+
+func NewKeyFromInt(k int) (Key, error) {
+	key := NewKey()
+	m := k
+	for i := 3; i >= 0; i-- {
+		if m <= 0 {
+			break
+		}
+		key[i] = uint8(m % 10)
+		m /= 10
+	}
+	if m != 0 {
+		return nil, fmt.Errorf("key (%d) must be in the range 0000 .. 9999", k)
+	}
+	return key, nil
+}
+
+// Next increments key in place, and returns true if it did not overflow.
+func (key Key) Next() bool {
+	for i := 3; i >= 0; i-- {
+		key[i]++
+		if key[i] != 10 {
+			return true
+		}
+		// Carry into next digit.
+		key[i] = 0
+	}
+	return false
+}
+
+func (key Key) Int() int {
+	n := 0
+	for _, v := range key {
+		n = 10*n + int(v)
+	}
+	return n
+}
+
 func (p *Puzzle) Unlock() (int, error) {
 	if !p.Scrambled {
 		return 0, nil
@@ -12,70 +58,50 @@ func (p *Puzzle) Unlock() (int, error) {
 	src := p.compressBuffer(p.solution)
 	dst := make([]byte, len(src))
 	tmp := make([]byte, len(src))
-	key := make([]uint8, 4)
-	for nextKey(key) {
+	key := NewKey()
+	for {
 		unscramble(src, key, dst, tmp)
 		if p.correctAnswers(dst) {
 			p.solution = p.expandBuffer(dst)
 			p.Scrambled = false
-			return keyNumber(key), nil
+			return key.Int(), nil
+		}
+		if !key.Next() {
+			break
 		}
 	}
 	return 0, fmt.Errorf("brute-force unlocking failed")
 }
 
-func nextKey(key []uint8) bool {
-	for i := range key {
-		key[i]++
-		if key[i] != 10 {
-			return true
-		}
-		key[i] = 0
-	}
-	return false
-}
-
-func keyNumber(key []uint8) int {
-	n := 0
-	for i := range key {
-		n = 10*n + int(key[i])
-	}
-	return n
-}
-
-func (p *Puzzle) UnlockWithKey(key int) error {
+func (p *Puzzle) UnlockWithKey(k int) error {
 	if !p.Scrambled {
-		if key == 0 {
+		if k == 0 {
 			return nil
 		}
 		return fmt.Errorf("puzzle is already unlocked")
 	}
-	if key < 0000 || 9999 < key {
-		return fmt.Errorf("key (%d) must be in the range 0000 .. 9999", key)
-	}
-	// Convert digits to corresponding ints.
-	k := []uint8(fmt.Sprintf("%04d", key))
-	for i, b := range k {
-		k[i] = b - '0'
+	key, err := NewKeyFromInt(k)
+	if err != nil {
+		return err
 	}
 	src := p.compressBuffer(p.solution)
 	dst := make([]byte, len(src))
 	tmp := make([]byte, len(src))
-	unscramble(src, k, dst, tmp)
+	unscramble(src, key, dst, tmp)
 	if !p.correctAnswers(dst) {
-		return fmt.Errorf("key %04d does not unlock this puzzle", key)
+		return fmt.Errorf("key %04d does not unlock this puzzle", k)
 	}
 	p.solution = p.expandBuffer(dst)
 	p.Scrambled = false
 	return nil
 }
 
-func unscramble(src []byte, key []uint8, dst []byte, tmp []byte) {
+func unscramble(src []byte, key Key, dst []byte, tmp []byte) {
 	n := len(src)
 	copy(dst, src)
-	for i := range key {
+	for i := 3; i >= 0; i-- {
 		unshuffle(dst, tmp)
-		k := int(key[3-i])
+		k := int(key[i])
 		copy(dst, tmp[n-k:])
 		copy(dst[k:], tmp[:n-k])
 		unshift(dst, key)
@@ -95,9 +121,9 @@ func unshuffle(src []byte, dst []byte) {
 	}
 }
 
-func unshift(buf []byte, key []uint8) {
+func unshift(buf []byte, key Key) {
 	for i, c := range buf {
-		buf[i] = 'A' + ((c-'A')-key[i%4]+26)%26
+		buf[i] = 'A' + (26+(c-'A')-key[i%4])%26
 	}
 }
 

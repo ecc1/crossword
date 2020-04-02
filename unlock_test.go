@@ -1,6 +1,8 @@
 package acrosslite
 
 import (
+	"bytes"
+	"fmt"
 	"path"
 	"testing"
 )
@@ -131,6 +133,106 @@ func TestUnlock(t *testing.T) {
 				t.Errorf("brute-force unlock found key %04d, want %04d", key, c.key)
 			}
 		})
+	}
+}
+
+func TestUnlockAllPuzzles(t *testing.T) {
+	for _, file := range testFiles() {
+		base := path.Base(file)
+		t.Run(base, func(t *testing.T) {
+			p, err := Read(file)
+			if err != nil {
+				t.Errorf("%s", err)
+				return
+			}
+			if !p.Scrambled {
+				return
+			}
+			key, err := p.Unlock()
+			if err != nil {
+				t.Errorf("%s", err)
+				return
+			}
+			if p.Scrambled {
+				t.Errorf("Scrambled flag is still true")
+			}
+			t.Logf("key = %04d", key)
+		})
+	}
+}
+
+const (
+	MaxInt = int(^uint(0) >> 1)
+	MinInt = int(-MaxInt - 1)
+)
+
+func TestKeys(t *testing.T) {
+	errorCase := fmt.Errorf("error")
+	cases := []struct {
+		k   int
+		key Key
+		err error
+	}{
+		{0000, Key{0, 0, 0, 0}, nil},
+		{1234, Key{1, 2, 3, 4}, nil},
+		{5678, Key{5, 6, 7, 8}, nil},
+		{9999, Key{9, 9, 9, 9}, nil},
+		{10000, nil, errorCase},
+		{MaxInt, nil, errorCase},
+		{-1, nil, errorCase},
+		{MinInt, nil, errorCase},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%04d", c.k), func(t *testing.T) {
+			key, err := NewKeyFromInt(c.k)
+			if err != nil {
+				if c.err == nil {
+					t.Errorf("%s", err)
+				}
+				return
+			}
+			if c.err != nil {
+				t.Errorf("NewKeyFromInt(%04d) == % X, want error", c.k, key)
+				return
+			}
+			if !bytes.Equal(key, c.key) {
+				t.Errorf("NewKeyFromInt(%04d) == % X, want % X", c.k, key, c.key)
+			}
+
+			k := key.Int()
+			if k != c.k {
+				t.Errorf("[% X].Int() == %04d, want %04d", key, k, c.k)
+			}
+		})
+	}
+}
+
+func TestAllKeys(t *testing.T) {
+	key := NewKey()
+	n := key.Int()
+	if n != 0 {
+		t.Errorf("[% X].Int() == %04d, want %04d", key, n, 0)
+	}
+	for k := 0000; k <= 9999; k++ {
+		n := key.Int()
+		if n != k {
+			t.Errorf("[% X].Int() == %04d, want %04d", key, n, k)
+		}
+		key2, err := NewKeyFromInt(k)
+		if err != nil {
+			t.Errorf("%s", err)
+		}
+		n = key2.Int()
+		if n != k {
+			t.Errorf("NewKeyFromInt(%04d).toInt() == %04d", k, n)
+		}
+		ok := key.Next()
+		if !ok && k != 9999 {
+			t.Errorf("[% X].Next() overflowed at %04d", key, k)
+		}
+	}
+	if key.Int() != 0 {
+		t.Errorf("key.Next() did not overflow at 9999")
 	}
 }
 
