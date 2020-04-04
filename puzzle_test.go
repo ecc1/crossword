@@ -1,6 +1,7 @@
 package crossword
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path"
 	"reflect"
@@ -25,12 +26,20 @@ func testFiles() []string {
 
 const dateLayout = "Jan0206.puz"
 
-func dateFromFileName(base string) time.Time {
-	t, err := time.Parse(dateLayout, base)
+func dateFromFileName(name string) time.Time {
+	t, err := time.Parse(dateLayout, path.Base(name))
 	if err != nil {
 		return time.Time{}
 	}
 	return t
+}
+
+func isSundayNYTPuzzle(file string) (bool, error) {
+	date := dateFromFileName(file)
+	if date.IsZero() {
+		return false, fmt.Errorf("cannot find date in file %q", file)
+	}
+	return date.Weekday() == 0, nil
 }
 
 func TestReadAllPuzzles(t *testing.T) {
@@ -42,21 +51,18 @@ func TestReadAllPuzzles(t *testing.T) {
 				t.Errorf("%s", err)
 				return
 			}
-			date := dateFromFileName(base)
-			if date.IsZero() {
+			sun, err := isSundayNYTPuzzle(base)
+			if err != nil {
 				return
 			}
-			switch date.Weekday() {
-			case 0:
-				if p.Width != 21 && p.Width != 23 {
+			if sun {
+				if p.Width != 21 {
 					t.Logf("%d×%d Sunday puzzle", p.Width, p.Height)
-					return
 				}
-			default:
-				if p.Width != 15 {
-					t.Logf("%d×%d weekday puzzle", p.Width, p.Height)
-					return
-				}
+				return
+			}
+			if p.Width != 15 {
+				t.Logf("%d×%d weekday puzzle", p.Width, p.Height)
 			}
 		})
 	}

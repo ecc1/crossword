@@ -72,9 +72,20 @@ func testLayouts(t *testing.T, files []string, outputFile string) {
 			rc := p.NewRenderContext(pdf)
 			rc.RenderAll()
 			m.Unlock()
+			if len(rc.Layouts) == 0 {
+				t.Errorf("failed to find any layout that fits")
+				return
+			}
 			n := rc.Layouts[rc.BestLayout].NumColumns
 			if n != best {
 				t.Errorf("got best layout = %d columns, want %d columns", n, best)
+			}
+			sun, err := isSundayNYTPuzzle(base)
+			if err != nil {
+				return
+			}
+			if sun && n != 6 {
+				t.Logf("%d×%d Sunday puzzle layout uses %d columns", p.Width, p.Height, n)
 			}
 		})
 	}
