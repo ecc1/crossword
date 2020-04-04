@@ -137,9 +137,9 @@ func TestUnlock(t *testing.T) {
 }
 
 func TestUnlockAllPuzzles(t *testing.T) {
-	for _, file := range testFiles() {
-		base := path.Base(file)
+	for _, base := range testFiles() {
 		t.Run(base, func(t *testing.T) {
+			file := path.Join(testDataDir, base)
 			p, err := Read(file)
 			if err != nil {
 				t.Errorf("%s", err)

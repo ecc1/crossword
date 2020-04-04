@@ -18,7 +18,7 @@ func testFiles() []string {
 	}
 	files := make([]string, len(entries))
 	for i, e := range entries {
-		files[i] = path.Join(testDataDir, e.Name())
+		files[i] = e.Name()
 	}
 	return files
 }
@@ -34,9 +34,9 @@ func dateFromFileName(base string) time.Time {
 }
 
 func TestReadAllPuzzles(t *testing.T) {
-	for _, file := range testFiles() {
-		base := path.Base(file)
+	for _, base := range testFiles() {
 		t.Run(base, func(t *testing.T) {
+			file := path.Join(testDataDir, base)
 			p, err := Read(file)
 			if err != nil {
 				t.Errorf("%s", err)

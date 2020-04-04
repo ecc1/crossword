@@ -1,6 +1,7 @@
 package crossword
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"sort"
@@ -10,6 +11,7 @@ import (
 
 const (
 	font            = "Helvetica"
+	blackLevel      = 0.70 // ink-saving level: 1 = solid black squares
 	marginPoints    = 18.0
 	titlePoints     = 13.0
 	minColumns      = 2
@@ -20,7 +22,10 @@ const (
 	cluePointsIncr  = 0.05
 	interClueFrac   = 0.2
 	lineWidthPoints = 0.5
-	blackLevel      = 0.70
+	fullPageFrac    = 0.9
+	minDownClues    = 2
+	widthFrac       = 0.5
+	heightFrac      = 0.6
 )
 
 type (
@@ -32,14 +37,17 @@ type (
 		pdf            *gofpdf.Fpdf
 		pageWidth      float64 // page width
 		pageHeight     float64 // page height
+		margin         float64
 		squareSize     float64 // grid square size
 		renderWidth    float64 // rendered puzzle width
 		renderHeight   float64 // rendered puzzle height
-		margin         float64
-		top            float64
+		puzzleLeft     float64
+		puzzleTop      float64
+		puzzleBottom   float64
 		titleHeight    float64
-		titleY         float64
+		titleBottom    float64
 		tall           bool
+		wide           bool
 		rendering      bool
 		cluesFit       bool
 		numColumns     int
@@ -69,20 +77,11 @@ func (p *Puzzle) NewRenderContext(pdf *gofpdf.Fpdf) *RenderContext {
 	r.pageWidth, r.pageHeight = pdf.GetPageSize()
 	r.margin = pdf.PointConvert(marginPoints)
 	r.titleHeight = pdf.PointConvert(titlePoints)
-	r.top = r.margin + r.titleHeight + pdf.PointConvert(2)
-	// Scale puzzle to half the page width.
-	puzWidth, puzHeight := float64(p.Width), float64(p.Height)
-	r.renderWidth = r.pageWidth/2 - r.margin
-	r.squareSize = r.renderWidth / puzWidth
-	r.renderHeight = puzHeight * r.squareSize
+	r.puzzleTop = r.margin + r.titleHeight + pdf.PointConvert(2)
 	r.columnSep = pdf.PointConvert(columnSepPoints)
-	// Shrink puzzle to page height if it is too tall.
-	if r.renderHeight+2*r.margin > r.pageHeight {
-		r.tall = true
-		r.renderHeight = r.pageHeight - (r.top + r.margin)
-		r.squareSize = r.renderHeight / puzHeight
-		r.renderWidth = puzWidth * r.squareSize
-	}
+	r.setRenderSize()
+	r.puzzleLeft = r.pageWidth - r.margin - r.renderWidth
+	r.puzzleBottom = r.puzzleTop + r.renderHeight
 	r.findLayouts()
 	return &r
 }
@@ -95,6 +94,39 @@ func (r *RenderContext) RenderAll() {
 	for i := range r.Layouts {
 		r.renderLayout(i)
 		r.markPage(i)
+	}
+}
+
+func (r *RenderContext) setRenderSize() {
+	puzWidth, puzHeight := float64(r.puz.Width), float64(r.puz.Height)
+	puzAspect := puzWidth / puzHeight
+	pageAspect := r.pageWidth / r.pageHeight
+	if puzAspect <= pageAspect {
+		// Scale puzzle width.
+		r.renderWidth = widthFrac * (r.pageWidth - 2*r.margin)
+		r.squareSize = r.renderWidth / puzWidth
+		r.renderHeight = puzHeight * r.squareSize
+		// Shrink puzzle height if it is too tall.
+		maxHeight := r.pageHeight - (r.puzzleTop + r.margin)
+		if r.renderHeight > maxHeight {
+			r.renderHeight = maxHeight
+			r.squareSize = r.renderHeight / puzHeight
+			r.renderWidth = puzWidth * r.squareSize
+		}
+		r.tall = r.renderHeight > fullPageFrac*maxHeight
+	} else {
+		// Scale puzzle height.
+		r.renderHeight = heightFrac * (r.pageHeight - (r.puzzleTop + r.margin))
+		r.squareSize = r.renderHeight / puzHeight
+		r.renderWidth = puzWidth * r.squareSize
+		// Shrink puzzle width if it is too wide.
+		maxWidth := r.pageWidth - 2*r.margin
+		if r.renderWidth > maxWidth {
+			r.renderWidth = maxWidth
+			r.squareSize = r.renderWidth / puzWidth
+			r.renderHeight = puzHeight * r.squareSize
+		}
+		r.wide = r.renderWidth > fullPageFrac*maxWidth
 	}
 }
 
@@ -112,27 +144,42 @@ func (r *RenderContext) renderLayout(i int) {
 func (r *RenderContext) drawTitle() {
 	puz := r.puz
 	pdf := r.pdf
-	rendering := r.rendering
-	m := r.margin
-	y0 := m + r.columnSep
-	title := PuzzleBytes(puz.Title)
-	pdf.SetFont(font, "B", titlePoints)
-	lines := pdf.SplitLines(title, r.pageWidth-(r.renderWidth+m)-m)
-	y := y0
-	for _, v := range lines {
-		if rendering {
-			pdf.Text(m, y, string(v))
-		}
-		y += r.titleHeight
-	}
-	r.titleY = math.Max(y+0.25*r.titleHeight, r.top)
-	if !rendering {
-		return
-	}
 	info := PuzzleString(puz.Author)
 	pdf.SetFont(font, "", 0.9*titlePoints)
 	w := pdf.GetStringWidth(info)
-	pdf.Text(r.pageWidth-m-w, y0, info)
+	x := r.pageWidth - r.margin - w
+	y := r.margin + r.columnSep
+	if r.rendering {
+		pdf.Text(x, y, info)
+	}
+	title := PuzzleBytes(puz.Title)
+	pdf.SetFont(font, "B", titlePoints)
+	lines := pdf.SplitLines(title, x-2*r.columnSep)
+	// Allow first line to extend up to author info.
+	if r.rendering {
+		pdf.Text(r.margin, y, string(lines[0]))
+	}
+	y += r.titleHeight
+	lines = lines[1:]
+	if len(lines) == 0 {
+		r.titleBottom = math.Max(y+0.25*r.titleHeight, r.puzzleTop)
+		return
+	}
+	if len(lines) > 1 && !r.wide {
+		// Re-break subsequent lines to fit to the left of the grid.
+		rest := bytes.Join(lines, []byte{' '})
+		lines = pdf.SplitLines(rest, r.pageWidth-r.renderWidth-2*r.margin)
+	}
+	for _, v := range lines {
+		if r.rendering {
+			pdf.Text(r.margin, y, string(v))
+		}
+		y += r.titleHeight
+	}
+	r.titleBottom = math.Max(y+0.25*r.titleHeight, r.puzzleTop)
+	if r.wide {
+		r.puzzleTop = r.titleBottom
+	}
 }
 
 func (r *RenderContext) drawGrid() {
@@ -142,7 +189,7 @@ func (r *RenderContext) drawGrid() {
 	sq := r.squareSize
 	// Transform coordinates so we can draw the puzzle grid with unit squares at (0,0).
 	pdf.TransformBegin()
-	pdf.TransformTranslate(r.pageWidth-(r.renderWidth+r.margin), r.top)
+	pdf.TransformTranslate(r.puzzleLeft, r.puzzleTop)
 	pdf.TransformScale(100*sq, 100*sq, 0, 0) // scale factors are percentages
 	pdf.SetLineWidth(pdf.PointConvert(lineWidthPoints) / sq)
 	// Draw horizontal grid lines.
@@ -187,14 +234,22 @@ func (r *RenderContext) drawGrid() {
 func (r *RenderContext) drawClues() {
 	r.currentColumn = 1
 	r.leftMargin = r.margin
+	ch := r.clueLineHeight
+	if r.leftMargin+r.columnWidth+r.columnSep <= r.puzzleLeft {
+		r.y = r.titleBottom
+	} else {
+		r.y = r.puzzleBottom + r.columnSep + ch
+	}
 	r.x = r.leftMargin + r.numberWidth
-	r.y = r.titleY
 	r.cluesFit = true
 	puz := r.puz
-	ch := r.clueLineHeight
 	r.doClues(Across)
-	// Make sure first DOWN clue fits along with the heading.
-	h, _ := r.clueHeight(puz.Dir[Down].Clues[puz.Dir[Down].Numbers[0]])
+	// Make sure first few DOWN clues fit along with the heading.
+	h := 0.0
+	for _, n := range puz.Dir[Down].Numbers[:minDownClues] {
+		c, _ := r.clueHeight(puz.Dir[Down].Clues[n])
+		h += c
+	}
 	if r.y+1.75*ch+h > r.pageHeight-r.margin {
 		r.nextColumn()
 	} else {
@@ -216,11 +271,12 @@ func (r *RenderContext) doClues(dir Direction) {
 	pdf := r.pdf
 	ch := r.clueLineHeight
 	rendering := r.rendering
-	pdf.SetFont(font, "B", r.cluePoints)
+	pdf.SetFont(font, "B", 0.8*r.cluePoints)
 	if rendering {
 		pdf.Text(r.x, r.y, dir.String())
 	}
 	r.y += 1.25 * ch
+	pdf.SetFont(font, "", r.cluePoints)
 	for _, n := range numbers {
 		h, lines := r.clueHeight(clues[n])
 		if r.y+h > r.pageHeight-r.margin {
@@ -283,25 +339,17 @@ func (r *RenderContext) nextColumn() {
 		panic(fmt.Sprintf("clues do not fit %d-column format", r.numColumns))
 	}
 	r.leftMargin += r.columnWidth + r.columnSep
-	r.x = r.leftMargin + r.numberWidth
-	r.y = r.columnTop()
-}
-
-func (r *RenderContext) columnTop() float64 {
-	if !r.tall && r.currentColumn > r.numColumns/2 {
-		return r.top + r.renderHeight + r.columnSep + r.clueLineHeight
+	if r.leftMargin+r.columnWidth+r.columnSep <= r.puzzleLeft {
+		r.y = r.titleBottom
+	} else {
+		r.y = r.puzzleBottom + r.columnSep + r.clueLineHeight
 	}
-	return r.titleY
+	r.x = r.leftMargin + r.numberWidth
 }
 
 func (r *RenderContext) findLayouts() {
-	colIncr := 1
-	if !r.tall {
-		// Don't use odd numbers of columns for non-tall puzzles.
-		colIncr = 2
-	}
 	layouts := make(map[int]Layout)
-	for n := minColumns; n <= maxColumns; n += colIncr {
+	for n := minColumns; n <= maxColumns; n++ {
 		for ps := maxCluePoints; ps >= minCluePoints; ps -= cluePointsIncr {
 			r.setLayout(n, ps)
 			r.rendering = false
