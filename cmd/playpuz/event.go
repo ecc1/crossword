@@ -23,11 +23,14 @@ func buttonPress(x, y int, w gtk.IWidget, e *gdk.Event) {
 	}
 }
 
-func keyPress(w gtk.IWidget, e *gdk.Event) {
+func keyPress(w gtk.IWidget, e *gdk.Event) bool {
 	k := gdk.EventKeyNewFromEvent(e).KeyVal()
 	if action, ok := keyAction[k]; ok {
 		action()
 	}
+	// Indicate that the event has been consumed so that
+	// the clue list boxes don't react to space, page down, etc.
+	return true
 }
 
 var keyAction = map[uint]func(){
