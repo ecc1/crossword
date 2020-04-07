@@ -25,33 +25,36 @@ func buttonPress(x, y int, w gtk.IWidget, e *gdk.Event) {
 
 func keyPress(w gtk.IWidget, e *gdk.Event) {
 	k := gdk.EventKeyNewFromEvent(e).KeyVal()
-	if 'A' <= k && k <= 'Z' {
-		updateCell(k)
-		moveForward(true)
-		return
+	if action, ok := keyAction[k]; ok {
+		action()
 	}
-	if 'a' <= k && k <= 'z' {
-		updateCell('A' + (k - 'a'))
+}
+
+var keyAction = map[uint]func(){
+	' ':               eraseCell,
+	gdk.KEY_BackSpace: backspaceCell,
+	gdk.KEY_Delete:    backspaceCell,
+	gdk.KEY_Home:      moveHome,
+	gdk.KEY_End:       moveEnd,
+	gdk.KEY_Left:      moveLeft,
+	gdk.KEY_Up:        moveUp,
+	gdk.KEY_Right:     moveRight,
+	gdk.KEY_Down:      moveDown,
+}
+
+func updateWith(c uint) func() {
+	return func() {
+		updateCell(c)
 		moveForward(true)
-		return
 	}
-	switch k {
-	case ' ':
-		updateCell(emptySquare)
-	case gdk.KEY_BackSpace, gdk.KEY_Delete:
-		updateCell(emptySquare)
-		moveBackward(false)
-	case gdk.KEY_Home:
-		moveHome()
-	case gdk.KEY_Left:
-		moveLeft()
-	case gdk.KEY_Up:
-		moveUp()
-	case gdk.KEY_Right:
-		moveRight()
-	case gdk.KEY_Down:
-		moveDown()
-	case gdk.KEY_End:
-		moveEnd()
+}
+
+func init() {
+	// Add actions for letter keys.
+	for k := uint('A'); k <= 'Z'; k++ {
+		keyAction[k] = updateWith(k)
+	}
+	for k := uint('a'); k <= 'z'; k++ {
+		keyAction[k] = updateWith('A' + (k - 'a'))
 	}
 }

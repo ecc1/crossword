@@ -128,6 +128,15 @@ func updateCell(c uint) {
 	}
 }
 
+func eraseCell() {
+	updateCell(emptySquare)
+}
+
+func backspaceCell() {
+	updateCell(emptySquare)
+	moveBackward(false)
+}
+
 func changeDirection() {
 	curDirection = 1 - curDirection
 	setActivePos(cur)
@@ -238,8 +247,9 @@ func moveBackward(skip bool) {
 	}
 }
 
-func activateFromClue(n int) {
-	pos := puz.Dir[curDirection].Positions[n]
+func activateFromClue(dir crossword.Direction, n int) {
+	pos := puz.Dir[dir].Positions[n]
+	curDirection = dir
 	setActive(pos.X, pos.Y)
 }
 

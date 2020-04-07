@@ -152,9 +152,8 @@ func makeClue(dir crossword.Direction, n int) gtk.IWidget {
 
 func chooseRow(dir crossword.Direction, w gtk.IWidget, row *gtk.ListBoxRow) {
 	i := row.GetIndex()
-	curDirection = dir
 	n := puz.Dir[dir].Numbers[i]
-	activateFromClue(n)
+	activateFromClue(dir, n)
 }
 
 func selectClue(dir crossword.Direction, i int) {
