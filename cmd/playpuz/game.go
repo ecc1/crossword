@@ -58,7 +58,7 @@ func setContents(contents []byte) error {
 		for x := 0; x < puz.Width; x++ {
 			if !puz.IsBlack(x, y) {
 				cells[y][x] = contents[0]
-				redrawCell(x, y)
+				redrawSquare(x, y)
 			}
 			contents = contents[1:]
 		}
@@ -120,20 +120,20 @@ func moveDown() {
 	moveForward(false)
 }
 
-func updateCell(c uint) {
+func updateSquare(c uint) {
 	cells[cur.Y][cur.X] = byte(c)
-	redrawCell(cur.X, cur.Y)
+	redrawSquare(cur.X, cur.Y)
 	if puzzleIsSolved() {
 		winnerWinner()
 	}
 }
 
-func eraseCell() {
-	updateCell(emptySquare)
+func eraseSquare() {
+	updateSquare(emptySquare)
 }
 
-func backspaceCell() {
-	updateCell(emptySquare)
+func backspaceSquare() {
+	updateSquare(emptySquare)
 	moveBackward(false)
 }
 
@@ -163,7 +163,7 @@ func setActive(x, y int) {
 
 func redrawWord(word crossword.Word) {
 	for _, pos := range word {
-		redrawCell(pos.X, pos.Y)
+		redrawSquare(pos.X, pos.Y)
 	}
 }
 
@@ -271,7 +271,7 @@ func checkSquare(x, y int) {
 		return
 	}
 	cells[y][x] = wrongSquare
-	redrawCell(x, y)
+	redrawSquare(x, y)
 }
 
 func checkWord() {
@@ -295,7 +295,7 @@ func solveWord() {
 	for _, pos := range curWord {
 		x, y := pos.X, pos.Y
 		cells[y][x] = puz.Answer(x, y)
-		redrawCell(x, y)
+		redrawSquare(x, y)
 	}
 }
 

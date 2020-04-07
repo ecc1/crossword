@@ -31,9 +31,9 @@ func keyPress(w gtk.IWidget, e *gdk.Event) {
 }
 
 var keyAction = map[uint]func(){
-	' ':               eraseCell,
-	gdk.KEY_BackSpace: backspaceCell,
-	gdk.KEY_Delete:    backspaceCell,
+	' ':               eraseSquare,
+	gdk.KEY_BackSpace: backspaceSquare,
+	gdk.KEY_Delete:    backspaceSquare,
 	gdk.KEY_Home:      moveHome,
 	gdk.KEY_End:       moveEnd,
 	gdk.KEY_Left:      moveLeft,
@@ -44,7 +44,7 @@ var keyAction = map[uint]func(){
 
 func updateWith(c uint) func() {
 	return func() {
-		updateCell(c)
+		updateSquare(c)
 		moveForward(true)
 	}
 }

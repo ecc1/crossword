@@ -19,9 +19,9 @@ const (
 	largeFontSize = 0.500
 	smallFontSize = 0.300
 
-	minCellSize = 75
-	clueWidth   = 400
-	gridWidth   = 1200
+	minSquareSize = 75
+	clueWidth     = 400
+	gridWidth     = 1200
 )
 
 var (
@@ -95,14 +95,14 @@ func makeGrid() gtk.IWidget {
 	grid.SetColumnSpacing(0)
 	for y := 0; y < puz.Height; y++ {
 		for x := 0; x < puz.Width; x++ {
-			attachCell(x, y)
+			attachSquare(x, y)
 		}
 	}
 	r := float32(puzWidth / puzHeight)
 	a, _ := gtk.AspectFrameNew("", 0.5, 0.5, r, false)
 	a.Add(grid)
-	w := min(puz.Width*minCellSize, maxWidth)
-	h := min(puz.Height*minCellSize, maxHeight)
+	w := min(puz.Width*minSquareSize, maxWidth)
+	h := min(puz.Height*minSquareSize, maxHeight)
 	a.SetSizeRequest(w, h)
 	return a
 }
@@ -163,18 +163,18 @@ func selectClue(dir crossword.Direction, i int) {
 	cl.GrabFocus()
 }
 
-func attachCell(x int, y int) {
+func attachSquare(x int, y int) {
 	d, _ := gtk.DrawingAreaNew()
 	d.SetHExpand(true)
 	d.SetVExpand(true)
-	d.Connect("draw", func(d *gtk.DrawingArea, c *cairo.Context) { drawCell(x, y, d, c) })
+	d.Connect("draw", func(d *gtk.DrawingArea, c *cairo.Context) { drawSquare(x, y, d, c) })
 	eb, _ := gtk.EventBoxNew()
 	eb.Add(d)
 	eb.Connect("button-press-event", func(w gtk.IWidget, e *gdk.Event) { buttonPress(x, y, w, e) })
 	grid.Attach(eb, x+1, y+1, 1, 1)
 }
 
-func drawCell(x int, y int, d *gtk.DrawingArea, c *cairo.Context) {
+func drawSquare(x int, y int, d *gtk.DrawingArea, c *cairo.Context) {
 	// Transform cell to unit square.
 	// Don't assume allocated width is exactly equal to allocated height;
 	// AspectFrame will keep them close enough but not necessarily equal.
@@ -213,7 +213,7 @@ func drawCell(x int, y int, d *gtk.DrawingArea, c *cairo.Context) {
 		c.LineTo(1, 0)
 	}
 	c.Stroke()
-	// Cell number.
+	// Square number.
 	n := puz.SquareNumber(x, y)
 	if n != 0 {
 		c.SelectFontFace(textFont, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
@@ -230,7 +230,7 @@ func drawCell(x int, y int, d *gtk.DrawingArea, c *cairo.Context) {
 		c.Arc(0.5+Δ, 0.5+Δ, 0.5-2*Δ, 0, 2*math.Pi)
 		c.Stroke()
 	}
-	// Cell contents.
+	// Square contents.
 	c.SelectFontFace(textFont, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 	c.SetFontSize(largeFontSize)
 	s := fmt.Sprintf("%c", cells[y][x])
@@ -244,7 +244,7 @@ func setColor(c *cairo.Context, color []float64) {
 	c.SetSourceRGBA(color[0], color[1], color[2], color[3])
 }
 
-func redrawCell(x, y int) {
+func redrawSquare(x, y int) {
 	w, _ := grid.GetChildAt(x+1, y+1)
 	w.QueueDraw()
 }
