@@ -67,17 +67,7 @@ func setContents(contents []byte) error {
 }
 
 func puzzleIsSolved() bool {
-	for y := 0; y < puz.Height; y++ {
-		for x := 0; x < puz.Width; x++ {
-			if puz.IsBlack(x, y) {
-				continue
-			}
-			if cells[y][x] != puz.Answer(x, y) {
-				return false
-			}
-		}
-	}
-	return true
+	return bytes.Equal(getContents(), puz.SolutionBytes())
 }
 
 func moveHome() {
