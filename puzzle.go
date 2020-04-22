@@ -183,7 +183,7 @@ func Read(file string) (*Puzzle, error) {
 	}
 	p, err := Decode(puz)
 	if err != nil {
-		err = fmt.Errorf("%s: %s", file, err)
+		err = fmt.Errorf("%s: %w", file, err)
 	}
 	return p, err
 }
@@ -200,11 +200,11 @@ func Decode(puz []byte) (*Puzzle, error) {
 	grids := puz // remember start of solution and fill grids for global checksum
 	p.solution, puz, err = p.readGrid(puz)
 	if err != nil {
-		return nil, fmt.Errorf("malformed solution section in %d×%d puzzle: %s", w, h, err)
+		return nil, fmt.Errorf("malformed solution section in %d×%d puzzle: %w", w, h, err)
 	}
 	_, puz, err = p.readGrid(puz)
 	if err != nil {
-		return nil, fmt.Errorf("malformed fill section in %d×%d puzzle: %s", w, h, err)
+		return nil, fmt.Errorf("malformed fill section in %d×%d puzzle: %w", w, h, err)
 	}
 
 	p.Title, puz = readString(puz)
@@ -234,7 +234,7 @@ func Decode(puz []byte) (*Puzzle, error) {
 	for {
 		puz, err = p.readExtension(puz)
 		if err != nil {
-			return nil, fmt.Errorf("malformed extension section in %d×%d puzzle: %s", w, h, err)
+			return nil, fmt.Errorf("malformed extension section in %d×%d puzzle: %w", w, h, err)
 		}
 		if puz == nil {
 			break
@@ -356,7 +356,7 @@ func (p *Puzzle) readExtension(v []byte) ([]byte, error) {
 		var err error
 		p.circles, _, err = p.readGrid(data)
 		if err != nil {
-			return nil, fmt.Errorf("%s extension: %s", code, err)
+			return nil, fmt.Errorf("%s extension: %w", code, err)
 		}
 	case "GRBS":
 	case "LTIM":
