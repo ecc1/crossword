@@ -19,9 +19,9 @@ const (
 	largeFontSize = 0.500
 	smallFontSize = 0.300
 
-	minSquareSize = 75
-	clueWidth     = 400
-	gridWidth     = 1200
+	minSquareSize = 50
+	clueWidth     = 250
+	gridWidth     = 1000
 )
 
 var (
@@ -62,8 +62,8 @@ func setGeometry() {
 	d, _ := window.GetScreen().GetDisplay()
 	m, _ := d.GetPrimaryMonitor()
 	r := m.GetGeometry()
-	maxWidth = 3 * r.GetWidth() / 4
-	maxHeight = 3 * r.GetHeight() / 4
+	maxWidth = 5 * r.GetWidth() / 6
+	maxHeight = 5 * r.GetHeight() / 6
 	window.SetDefaultSize(-1, maxHeight/puz.Height)
 	window.SetPosition(gtk.WIN_POS_MOUSE)
 }
