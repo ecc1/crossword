@@ -246,7 +246,7 @@ func setColor(c *cairo.Context, color []float64) {
 
 func redrawSquare(x, y int) {
 	w, _ := grid.GetChildAt(x+1, y+1)
-	w.QueueDraw()
+	w.ToWidget().QueueDraw()
 }
 
 func runUI() {
